@@ -80,6 +80,7 @@ export async function activateMiddleView(plugin: PluginManagerPlugin) {
 /** 刷新所有插件信息 */
 export function getAllPlugins(plugin: PluginManagerPlugin) {
 	const storeSettings = store.getState().settings;
+	const currentDevice = getDeviceType();
 
 	// @ts-ignore
 	const installedPluginIds = Object.keys(app.plugins.manifests);
@@ -91,10 +92,22 @@ export function getAllPlugins(plugin: PluginManagerPlugin) {
 		// @ts-ignore
 		const isEnabled = Object.keys(app.plugins.plugins).includes(id);
 
+		let disabledDeviceTypes: DeviceType[];
+		if (storePlugin) {
+			// 保留用户设置的设备类型配置，不从启用状态重新推导
+			disabledDeviceTypes = storePlugin.disabledDeviceTypes ?? [];
+		} else {
+			// 新插件：已启用→全部设备类型启用；未启用→全部设备类型禁用
+			disabledDeviceTypes = isEnabled ? [] : (["phone", "tablet", "desktop"] as DeviceType[]);
+		}
+
+		// enabled 反映当前设备上是否应该运行：实际启用 且 当前设备类型未被禁用
+		const enabled = isEnabled && !disabledDeviceTypes.includes(currentDevice);
+
 		return {
 			id,
 			name: manifest.name || "",
-			enabled: isEnabled,
+			enabled,
 			switchTime: storePlugin?.switchTime || 0,
 			tags: storePlugin?.tags || [],
 			comment: storePlugin?.comment || "",
@@ -106,8 +119,7 @@ export function getAllPlugins(plugin: PluginManagerPlugin) {
 			isDesktopOnly: manifest.isDesktopOnly || false,
 			minAppVersion: manifest.minAppVersion || "",
 			version: manifest.version || "",
-			// 新插件：已启用→全部设备类型启用；未启用→全部设备类型禁用
-			disabledDeviceTypes: storePlugin?.disabledDeviceTypes ?? (isEnabled ? [] : ["phone", "tablet", "desktop"]),
+			disabledDeviceTypes,
 		};
 	}) as PluginManager[];
 

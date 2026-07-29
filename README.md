@@ -59,7 +59,6 @@ src/
 │   ├── PluginManagerView    # 主视图（插件列表表格）
 │   ├── PluginManagerLeft    # ItemView 注册
 │   ├── GroupView            # 分组筛选栏
-│   ├── MakeTagsView         # 标签管理
 │   ├── PluginCommentCell    # 备注单元格
 │   └── PMtools              # 工具函数（设备类型检测、插件启停）
 ├── components/              # 通用 UI 组件
