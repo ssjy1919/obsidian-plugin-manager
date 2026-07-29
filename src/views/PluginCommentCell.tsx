@@ -29,6 +29,7 @@ const PluginCommentCell: React.FC<Props> = ({
                 "",
                 plugin
             ).then(() => {
+                // 处理内部链接
                 divRef.current?.querySelectorAll('a.internal-link').forEach(a => {
                     a.addEventListener('click', async (evt) => {
                         evt.stopPropagation();
@@ -45,9 +46,10 @@ const PluginCommentCell: React.FC<Props> = ({
                         await plugin.app.workspace.openLinkText(href, '', false);
                     });
                 });
+
             });
         }
-    }, [editing, value, placeholder, plugin, Iplugin]);
+    }, [editing, value, placeholder, plugin]);
     if (editing) {
         return (
             <textarea

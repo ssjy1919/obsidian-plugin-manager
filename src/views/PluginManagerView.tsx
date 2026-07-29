@@ -8,7 +8,6 @@ import { DeviceType, PluginManager } from "../types";
 import { disablePlugin, enablePlugin, tempEnablePlugin, getAllPlugins, getDeviceType, getSwitchTimeByPluginId, openPluginSettings } from "./PMtools";
 import { useMemo, useState } from "react";
 import GroupView from "./GroupView";
-import MakeTagsView from "./MakeTagsView";
 import { Notice } from "obsidian";
 import PluginCommentCell from "./PluginCommentCell";
 
@@ -33,15 +32,10 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 	const [searchQuery, setSearchQuery] = useState<string>("");
 
 	const filteredPlugins = pluginManager.filter(Iplugin => {
-		const matchesGroup = !storeSettings.showPluginGroups
-			|| Iplugin.tags.includes(storeSettings.showPluginGroups);
-
 		const searchLower = searchQuery.trim().toLowerCase();
-		const matchesSearch = !searchQuery
+		return !searchQuery
 			|| Iplugin.name.toLowerCase().includes(searchLower)
 			|| (Iplugin.comment.toLowerCase() || Iplugin.description.toLowerCase()).includes(searchLower);
-
-		return matchesGroup && matchesSearch;
 	});
 
 	const [getEnabledPlugins, getDisabledPlugins] = useMemo(() => [
@@ -318,7 +312,7 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 			</div>
 			<div className="pluginManager-table">
 				<div className="pluginManager-table-header">
-					<GroupView plugin={plugin}
+					<GroupView
 						searchQuery={searchQuery}
 						setSearchQuery={setSearchQuery}
 					/>
@@ -345,11 +339,7 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 								{storeField === "delayStart" && storeOrder === "asc" && "↑"}
 								{storeField === "delayStart" && storeOrder === "desc" && "↓"}
 							</th>
-							<th onClick={() => handleHeaderClick('tags')} >
-								标签{" "}
-								{storeField === "tags" && storeOrder === "asc" && "↑"}
-								{storeField === "tags" && storeOrder === "desc" && "↓"}
-							</th>
+							<th>启停设备类型</th>
 							<th onClick={() => handleHeaderClick('switchTime')} >
 								更改时间{" "}
 								{storeField === "switchTime" && storeOrder === "asc" && "↑"}
@@ -378,29 +368,12 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 										</td>
 										<td>
 											{Iplugin.id != "obsidian-plugin-manager" ? (
-                                                <div className="status-cell">
-													<Switch
-														label=""
-														description=""
-														value={Iplugin.enabled}
-														onChange={() => { handleChange(Iplugin) }}
-                                                    />
-                                                    <div className="device-type-checkboxes">
-														{(["phone", "tablet", "desktop"] as DeviceType[]).map(type => {
-															const isChecked = (Iplugin.disabledDeviceTypes || []).includes(type);
-															return (
-																<label key={type} className={`device-type-cb ${isChecked ? "checked" : ""}`} title={isChecked ? `在${type === "phone" ? "手机" : type === "tablet" ? "iPad" : "电脑"}启用` : `在${type === "phone" ? "手机" : type === "tablet" ? "iPad" : "电脑"}上禁用`}>
-																	<input
-																		type="checkbox"
-																		checked={isChecked}
-																		onChange={() => handleDeviceTypeToggle(Iplugin, type)}
-																	/>
-																	<span>{DEVICE_TYPE_ICONS[type]}</span>
-																</label>
-															);
-														})}
-													</div>
-												</div>
+												<Switch
+													label=""
+													description=""
+													value={Iplugin.enabled}
+													onChange={() => { handleChange(Iplugin) }}
+												/>
 											) : "⚪"}
 										</td>
 										<td>
@@ -418,7 +391,23 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 												/> : "0"}
 										</td>
 										<td>
-											<MakeTagsView Iplugin={Iplugin} plugin={plugin} />
+											<div className="device-type-checkboxes">
+												{(["phone", "tablet", "desktop"] as DeviceType[]).map(type => {
+													const isSelf = Iplugin.id === "obsidian-plugin-manager";
+													const isChecked = !isSelf && (Iplugin.disabledDeviceTypes || []).includes(type);
+													return (
+														<label key={type} className={`device-type-cb ${isChecked ? "checked" : ""}`} title={isSelf ? "插件管理器始终启用" : isChecked ? `在${type === "phone" ? "手机" : type === "tablet" ? "iPad" : "电脑"}启用` : `在${type === "phone" ? "手机" : type === "tablet" ? "iPad" : "电脑"}上禁用`}>
+															<input
+																type="checkbox"
+																checked={isChecked}
+																disabled={isSelf}
+																onChange={() => handleDeviceTypeToggle(Iplugin, type)}
+															/>
+															<span>{DEVICE_TYPE_ICONS[type]}</span>
+														</label>
+													);
+												})}
+											</div>
 										</td>
 										<td>
 											{getSwitchTimeByPluginId(Iplugin.id) === 0
@@ -431,9 +420,14 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 												Iplugin={Iplugin}
 												editing={!!pluginNote[Iplugin.id]}
 												value={Iplugin.comment}
-												placeholder={Iplugin.description}
+												placeholder={`${Iplugin.description || ""}\n[社区主页](obsidian://show-plugin?id=${Iplugin.id})`}
 												onChange={v => handleCommentChange(Iplugin, v)}
-												onEdit={() => setPluginNote({ ...pluginNote, [Iplugin.id]: true })}
+												onEdit={() => {
+													if (!Iplugin.comment && Iplugin.description) {
+														handleCommentChange(Iplugin, `${Iplugin.description}\n[社区主页](obsidian://show-plugin?id=${Iplugin.id})`);
+													}
+													setPluginNote({ ...pluginNote, [Iplugin.id]: true });
+												}}
 												onBlur={() => setPluginNote({ ...pluginNote, [Iplugin.id]: false })}
 											/>
 										</td>

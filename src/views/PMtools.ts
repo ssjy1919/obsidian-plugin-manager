@@ -88,11 +88,13 @@ export function getAllPlugins(plugin: PluginManagerPlugin) {
 		const manifest = app.plugins.manifests[id] as PluginManifest;
 		const storePlugin = storeSettings.pluginManager.find((p) => p.id === id);
 
+		// @ts-ignore
+		const isEnabled = Object.keys(app.plugins.plugins).includes(id);
+
 		return {
 			id,
 			name: manifest.name || "",
-			// @ts-ignore
-			enabled: Object.keys(app.plugins.plugins).includes(id) ? true : false,
+			enabled: isEnabled,
 			switchTime: storePlugin?.switchTime || 0,
 			tags: storePlugin?.tags || [],
 			comment: storePlugin?.comment || "",
@@ -104,7 +106,8 @@ export function getAllPlugins(plugin: PluginManagerPlugin) {
 			isDesktopOnly: manifest.isDesktopOnly || false,
 			minAppVersion: manifest.minAppVersion || "",
 			version: manifest.version || "",
-			disabledDeviceTypes: storePlugin?.disabledDeviceTypes || [],
+			// 新插件：已启用→全部设备类型启用；未启用→全部设备类型禁用
+			disabledDeviceTypes: storePlugin?.disabledDeviceTypes ?? (isEnabled ? [] : ["phone", "tablet", "desktop"]),
 		};
 	}) as PluginManager[];
 
