@@ -1,10 +1,10 @@
 {
 	"id": "obsidian-plugin-manager",
 	"name": "Plugin Manager",
-	"version": "1.0.0",
+	"version": "0.0.1",
 	"minAppVersion": "0.15.0",
-	"description": "插件管理器 - 管理插件的启用状态、分组、延时启动、更新检查等功能。",
+	"description": "插件管理器 - 管理插件的启用状态、分组、延时启动。不同设备类型禁用插件。",
 	"author": "ssjy1919",
-	"authorUrl": "https://github.com/ssjy1919/Watchtower",
+	"authorUrl": "https://github.com/ssjy1919/obsidian-plugin-manager",
 	"isDesktopOnly": false
 }
