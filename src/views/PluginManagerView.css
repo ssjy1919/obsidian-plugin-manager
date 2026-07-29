@@ -16,8 +16,12 @@
 
 }
 
-.PluginManagerView .grouping {
-	position: fixed;
+.workspace-leaf-content[data-type="plugin-manager-left-view"] {
+	position: relative;
+}
+
+.workspace-leaf-content[data-type="plugin-manager-left-view"] .PluginManagerView .grouping {
+	position: absolute;
 	left: 0;
 	top: 50%;
 	transform: translateY(-50%);
@@ -117,11 +121,6 @@
 
 .PluginManagerView thead {
 	background-color: var(--color-base-25);
-	position: fixed;
-	top: calc(var(--header-height, 32px) + 2.5em);
-	left: 0;
-	right: 0;
-	z-index: 4;
 }
 
 .PluginManagerView thead>tr>th:hover {
@@ -238,17 +237,10 @@
 }
 
 .pluginManager-table-header {
-	display: flex
-;
-    justify-content: space-between;
-    align-items: flex-end;
-    min-width: 50em;
-    position: fixed;
-    top: calc(var(--header-height, 32px) + -0.5em);
-    left: 0;
-    right: 0;
-    z-index: 5;
-    background-color: var(--background-primary);
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-end;
+	min-width: 50em;
 
 	& button {
 		cursor: pointer;
