@@ -4,7 +4,6 @@
         "inlineSourceMap": true,
         "inlineSources": true,
         "module": "ESNext",
-        "ignoreDeprecations": "6.0",
         "target": "ES6",
         "allowJs": true,
         "noImplicitAny": true,
