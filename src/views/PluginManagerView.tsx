@@ -420,11 +420,15 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 												Iplugin={Iplugin}
 												editing={!!pluginNote[Iplugin.id]}
 												value={Iplugin.comment}
-												placeholder={`${Iplugin.description || ""}\n[社区主页](obsidian://show-plugin?id=${Iplugin.id})`}
+												placeholder={`${Iplugin.description || ""}\n[${Iplugin.id === "obsidian-plugin-manager" ? "仓库主页" : "社区主页"}](${Iplugin.id === "obsidian-plugin-manager" ? "https://github.com/ssjy1919/obsidian-plugin-manager/tree/main" : `obsidian://show-plugin?id=${Iplugin.id}`})`}
 												onChange={v => handleCommentChange(Iplugin, v)}
 												onEdit={() => {
 													if (!Iplugin.comment && Iplugin.description) {
-														handleCommentChange(Iplugin, `${Iplugin.description}\n[社区主页](obsidian://show-plugin?id=${Iplugin.id})`);
+														const link = Iplugin.id === "obsidian-plugin-manager"
+															? "https://github.com/ssjy1919/obsidian-plugin-manager/tree/main"
+															: `obsidian://show-plugin?id=${Iplugin.id}`;
+														const label = Iplugin.id === "obsidian-plugin-manager" ? "仓库主页" : "社区主页";
+														handleCommentChange(Iplugin, `${Iplugin.description}\n[${label}](${link})`);
 													}
 													setPluginNote({ ...pluginNote, [Iplugin.id]: true });
 												}}
