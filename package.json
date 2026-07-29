@@ -1,0 +1,32 @@
+{
+	"name": "obsidian-plugin-manager",
+	"version": "1.0.0",
+	"description": "Obsidian 插件管理器 - 管理插件的启用状态、分组、延时启动、更新检查等功能。",
+	"main": "main.js",
+	"type": "module",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"version": "node version-bump.mjs && git add manifest.json versions.json"
+	},
+	"keywords": [],
+	"author": "ssjy1919",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^16.18.126",
+		"@types/react": "^19.0.10",
+		"@types/react-dom": "^19.0.4",
+		"builtin-modules": "3.3.0",
+		"esbuild": "0.17.3",
+		"obsidian": "latest",
+		"tslib": "2.4.0",
+		"typescript": "4.7.4"
+	},
+	"dependencies": {
+		"@reduxjs/toolkit": "^2.6.0",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0",
+		"react-redux": "^9.2.0",
+		"redux": "^5.0.1"
+	}
+}
