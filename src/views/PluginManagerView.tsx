@@ -273,24 +273,24 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 				: p
 		);
 
+		// 先更新 UI 和持久化设置
+		dispatch(updataPluginManager(updated));
+		const newSettings = { ...storeSettings, pluginManager: updated };
+		await plugin.saveData(newSettings);
+
+		// 再执行实际的启用/禁用操作（await 完成后插件状态才真正改变）
 		if (allEnabled) {
-			// 全部设备类型启用 → 持久化启用（重启后自动加载）
 			await enablePlugin(iPlugin.id);
 		} else if (allDisabled) {
-			// 全部设备类型禁用 → 持久化禁用（重启后不加载）
 			await disablePlugin(iPlugin.id);
 		} else {
-			// 部分禁用 → 先持久化禁用（让 app 记住关闭状态）
 			await disablePlugin(iPlugin.id);
 			if (currentTypeAllowed) {
-				// 当前设备类型允许 → 临时启用（重启后恢复关闭，不浪费资源）
 				await tempEnablePlugin(iPlugin.id);
 			}
 		}
 
-		dispatch(updataPluginManager(updated));
-		const newSettings = { ...storeSettings, pluginManager: updated };
-		await plugin.saveData(newSettings);
+		// 最后刷新插件列表（此时 app.plugins.plugins 已是最新状态）
 		getAllPlugins(plugin);
 	};
 

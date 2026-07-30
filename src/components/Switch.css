@@ -57,8 +57,9 @@ input:checked+.slider:before {
 		background-color: #c6c6c61b;
 	}
 }
-.setting-item-control {
+.PluginManagerView .setting-item-control {
     text-align: end;
     display: flex;
     gap: var(--size-4-2);
+    justify-content: center;
 }

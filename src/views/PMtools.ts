@@ -216,6 +216,12 @@ export function shouldPluginRun(
 	return null;
 }
 
+/** 插件是否已在当前会话中加载运行 */
+function isPluginLoaded(pluginId: string): boolean {
+	//@ts-ignore
+	return Object.keys(app.plugins.plugins).includes(pluginId);
+}
+
 /**
  * 启动时应用设备类型规则。
  * 对所有插件评估，使用临时禁用（不持久化）。
