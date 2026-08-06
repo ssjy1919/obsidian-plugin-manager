@@ -8,6 +8,7 @@ import {
 import { activateMiddleView, getAllPlugins, applyDeviceRules, clearAllDelayedStarts } from "./views/PMtools";
 import { store, updataSettings } from "./store";
 import { t } from "./i18n";
+import { debugError } from "./logger";
 
 export default class PluginManagerPlugin extends Plugin {
 	public settings!: PluginManagerSettings;
@@ -20,7 +21,7 @@ export default class PluginManagerPlugin extends Plugin {
 			try {
 				store.dispatch(updataSettings(this.settings));
 			} catch (e) {
-				console.error("[PluginManager] 初始化失败:", e);
+				debugError("初始化失败:", e);
 				store.dispatch(updataSettings(this.settings));
 			}
 

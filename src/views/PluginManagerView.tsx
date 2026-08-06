@@ -11,6 +11,7 @@ import GroupView from "./GroupView";
 import { Notice } from "obsidian";
 import PluginCommentCell from "./PluginCommentCell";
 import { t, TranslationKey } from "../i18n";
+import { debugError } from "../logger";
 
 const DEVICE_TYPE_ICONS: Record<DeviceType, string> = {
 	phone: "📱",
@@ -264,7 +265,7 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 			const backup = currentSettings.secondPluginManager;
 
 			const promises = backup
-				.filter(p => p.id && p.id !== "obsidian-plugin-manager")
+				.filter(p => p.id && p.id !== "plugins-control")
 				.map(async (p) => {
 					if ((plugin.app as InternalApp).isMobile && p.isDesktopOnly) return;
 					const disabledDeviceTypes = p.disabledDeviceTypes || [];
@@ -301,7 +302,7 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 			await plugin.saveData(store.getState().settings);
 			new Notice(t(language, "restored"), 5000);
 		} catch (error) {
-			console.error('恢复插件配置失败:', error);
+			debugError('恢复插件配置失败:', error);
 			new Notice(t(language, "restoreFailed"), 5000);
 		}
 	};
@@ -448,7 +449,7 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 											</div>
 										</td>
 										<td>
-											{Iplugin.id != "obsidian-plugin-manager" ? (
+											{Iplugin.id != "plugins-control" ? (
 												<Switch
 													label=""
 													description=""
@@ -458,7 +459,7 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 											) : "⚪"}
 										</td>
 										<td>
-											{Iplugin.id != "obsidian-plugin-manager" ?
+											{Iplugin.id != "plugins-control" ?
 												<input
 													type="number"
 													min="0"
@@ -474,7 +475,7 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 										<td>
 											<div className="device-type-checkboxes">
 												{(["phone", "tablet", "desktop"] as DeviceType[]).map(type => {
-													const isSelf = Iplugin.id === "obsidian-plugin-manager";
+													const isSelf = Iplugin.id === "plugins-control";
 													const isChecked = !isSelf && (Iplugin.disabledDeviceTypes || []).includes(type);
 													return (
 														<label key={type} className={`device-type-cb ${isChecked ? "checked" : ""}`} title={isSelf ? t(language, "alwaysEnabled") : t(language, isChecked ? "disabledOn" : "enabledOn", { type: t(language, DEVICE_TYPE_KEYS[type]) })}>
@@ -501,14 +502,14 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 												Iplugin={Iplugin}
 												editing={!!pluginNote[Iplugin.id]}
 												value={Iplugin.comment}
-												placeholder={`${Iplugin.description || ""}\n[${t(language, Iplugin.id === "obsidian-plugin-manager" ? "repoHome" : "communityHome")}](${Iplugin.id === "obsidian-plugin-manager" ? "https://github.com/ssjy1919/obsidian-plugin-manager/tree/main" : `obsidian://show-plugin?id=${Iplugin.id}`})`}
+												placeholder={`${Iplugin.description || ""}\n[${t(language, Iplugin.id === "plugins-control" ? "repoHome" : "communityHome")}](${Iplugin.id === "plugins-control" ? "https://github.com/ssjy1919/plugins-control/tree/main" : `obsidian://show-plugin?id=${Iplugin.id}`})`}
 												onChange={v => handleCommentChange(Iplugin, v)}
 												onEdit={() => {
 													if (!Iplugin.comment && Iplugin.description) {
-														const link = Iplugin.id === "obsidian-plugin-manager"
-															? "https://github.com/ssjy1919/obsidian-plugin-manager/tree/main"
+														const link = Iplugin.id === "plugins-control"
+															? "https://github.com/ssjy1919/plugins-control/tree/main"
 															: `obsidian://show-plugin?id=${Iplugin.id}`;
-														const label = t(language, Iplugin.id === "obsidian-plugin-manager" ? "repoHome" : "communityHome");
+														const label = t(language, Iplugin.id === "plugins-control" ? "repoHome" : "communityHome");
 														handleCommentChange(Iplugin, `${Iplugin.description}\n[${label}](${link})`);
 													}
 													setPluginNote({ ...pluginNote, [Iplugin.id]: true });

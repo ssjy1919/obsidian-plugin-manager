@@ -1,6 +1,6 @@
-# Obsidian Plugin Manager
+# Obsidian Plugins Control
 
-Obsidian 插件管理器 —— 集中管理已安装插件的启用状态、延时启动、设备类型控制和备注。
+Obsidian 插件控制 —— 集中管理已安装插件的启用状态、延时启动、设备类型控制和备注。
 
 ## 功能
 
@@ -13,6 +13,7 @@ Obsidian 插件管理器 —— 集中管理已安装插件的启用状态、延
 - **备注功能**：为插件添加 Markdown 备注，支持内部链接
 - **配置备份/恢复**：保存并恢复全部插件的启用状态、设备规则、延时和备注
 - **中英文界面**：在设置页选择中文或 English，主界面和操作提示即时切换
+- **控制台日志**：默认关闭，可在设置页开启调试日志
 
 ## 设备类型控制
 
@@ -30,14 +31,14 @@ Obsidian 插件管理器 —— 集中管理已安装插件的启用状态、延
 
 1. 克隆或下载本仓库到 Obsidian 的插件目录：
    ```
-   <你的仓库路径>/.obsidian/plugins/obsidian-plugin-manager/
+   <你的仓库路径>/.obsidian/plugins/plugins-control/
    ```
 2. 在插件目录下运行：
    ```bash
    npm install
    npm run build
    ```
-3. 在 Obsidian 中启用插件：**设置 → 第三方插件 → Plugin Manager**
+3. 在 Obsidian 中启用插件：**设置 → 第三方插件 → Plugins Control**
 4. 打开插件设置页，在“界面语言 / Language”中选择中文或 English
 
 ## 开发

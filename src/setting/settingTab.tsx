@@ -18,6 +18,7 @@ const SettingComponent: React.FC<SettingComponentProps> = ({ plugin }) => {
 	const storeSettings = useSelector((state: RootState) => state.settings);
 	const pluginSettingNewWindow = useSelector((state: RootState) => state.settings.pluginSettingNewWindow);
 	const language = useSelector((state: RootState) => state.settings.language);
+	const debugLogs = useSelector((state: RootState) => state.settings.debugLogs);
 	const dispatch = useDispatch();
 
 	const handlePluginSettingNewWindowChange = async (value: boolean) => {
@@ -34,6 +35,13 @@ const SettingComponent: React.FC<SettingComponentProps> = ({ plugin }) => {
 		await plugin.saveData(newSettings);
 		plugin.updateUILanguage();
 		new Notice(t(value, "languageChanged"), 3000);
+	};
+
+	const handleDebugLogsChange = async (value: boolean) => {
+		const newSettings = { ...storeSettings, debugLogs: value };
+		dispatch(updataSettings(newSettings));
+		await plugin.saveData(newSettings);
+		new Notice(t(language, value ? "debugLogsEnabled" : "debugLogsDisabled"), 3000);
 	};
 
 	return (
@@ -61,6 +69,12 @@ const SettingComponent: React.FC<SettingComponentProps> = ({ plugin }) => {
 						description={t(language, "newWindowDescription")}
 						value={pluginSettingNewWindow}
 						onChange={handlePluginSettingNewWindowChange}
+					/>
+					<Switch
+						label={t(language, "debugLogsLabel")}
+						description={t(language, "debugLogsDescription")}
+						value={debugLogs}
+						onChange={handleDebugLogsChange}
 					/>
 				</div>
 			</div>

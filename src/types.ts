@@ -107,6 +107,8 @@ export interface PluginManagerSettings {
 	pluginSettingNewWindow: boolean;
 	/** 插件界面语言 */
 	language: Language;
+	/** 是否输出控制台日志 */
+	debugLogs: boolean;
 }
 
 export const DEFAULT_SETTINGS: PluginManagerSettings = {
@@ -119,4 +121,5 @@ export const DEFAULT_SETTINGS: PluginManagerSettings = {
 	},
 	pluginSettingNewWindow: true,
 	language: "zh",
+	debugLogs: false,
 };

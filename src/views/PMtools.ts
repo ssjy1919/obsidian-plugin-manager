@@ -4,6 +4,7 @@ import { App, Notice, PluginManifest, WorkspaceLeaf } from "obsidian";
 import { DeviceType, PluginManager, normalizePluginEntry } from "../types";
 import { updataSettings, store } from "../store";
 import { t } from "../i18n";
+import { debugError, debugLog } from "../logger";
 
 interface InternalPlugins {
 	manifests: Record<string, PluginManifest>;
@@ -64,7 +65,7 @@ export function scheduleDelayedEnable(
 		try {
 			await tempEnablePlugin(pluginId);
 		} catch (e) {
-			console.error(`[PluginManager] 延时启用 ${pluginId} 失败:`, e);
+			debugError(`延时启用 ${pluginId} 失败:`, e);
 		} finally {
 			getAllPlugins(plugin);
 		}
@@ -300,13 +301,13 @@ export async function applyDeviceRules(plugin: PluginManagerPlugin) {
 		const storeSettings = store.getState().settings;
 		const deviceType = getDeviceType();
 		const uaMobile = getUserAgentData()?.mobile;
-		console.log("[PluginManager] 当前设备类型:", deviceType,
+		debugLog("当前设备类型:", deviceType,
 			"| userAgentData.mobile:", uaMobile,
 			"| maxTouchPoints:", navigator.maxTouchPoints);
 
 		const plugins = storeSettings.pluginManager || [];
 		for (const p of plugins) {
-			if (p.id === "obsidian-plugin-manager") continue;
+			if (p.id === "plugins-control") continue;
 
 			const rule = shouldPluginRun(p, deviceType);
 			const hasPartialDisable = (p.disabledDeviceTypes || []).length > 0;
@@ -315,7 +316,7 @@ export async function applyDeviceRules(plugin: PluginManagerPlugin) {
 			if (rule === false) {
 				// 当前设备类型被禁用 → 临时禁用（持久化禁用已在操作时完成）
 				clearDelayedStart(p.id);
-				console.log(`[PluginManager] ${p.id}: 临时禁用 (设备类型 ${deviceType} 被禁)`);
+				debugLog(`${p.id}: 临时禁用 (设备类型 ${deviceType} 被禁)`);
 				await tempDisablePlugin(p.id);
 			} else if (!startEnabled) {
 				// 用户没有启用该插件，避免延时定时器把它重新拉起。
@@ -324,11 +325,11 @@ export async function applyDeviceRules(plugin: PluginManagerPlugin) {
 				// 部分禁用，但当前设备类型允许 → 需要临时启用（持久化状态是关闭的）
 				if (deviceType !== "desktop" && p.isDesktopOnly) continue;
 				if (p.delayStart > 0) {
-					console.log(`[PluginManager] ${p.id}: 延时临时启用 (${p.delayStart}s)`);
+					debugLog(`${p.id}: 延时临时启用 (${p.delayStart}s)`);
 					await disablePlugin(p.id);
 					scheduleDelayedEnable(p.id, p.delayStart, plugin);
 				} else {
-					console.log(`[PluginManager] ${p.id}: 临时启用 (部分禁用，当前设备允许)`);
+					debugLog(`${p.id}: 临时启用 (部分禁用，当前设备允许)`);
 					await tempEnablePlugin(p.id);
 				}
 			} else {
@@ -336,13 +337,13 @@ export async function applyDeviceRules(plugin: PluginManagerPlugin) {
 				// 这里先持久化禁用，确保下次启动不提前加载。
 				if (p.delayStart > 0) {
 					if (deviceType !== "desktop" && p.isDesktopOnly) continue;
-					console.log(`[PluginManager] ${p.id}: 延时启动 (${p.delayStart}s)`);
+					debugLog(`${p.id}: 延时启动 (${p.delayStart}s)`);
 					await disablePlugin(p.id);
 					scheduleDelayedEnable(p.id, p.delayStart, plugin);
 				}
 			}
 		}
 	} catch (e) {
-		console.error("[PluginManager] applyDeviceRules 失败:", e);
+		debugError("applyDeviceRules 失败:", e);
 	}
 }
