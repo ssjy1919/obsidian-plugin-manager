@@ -1,7 +1,10 @@
 import { useEffect, useRef } from "react";
+import { useSelector } from "react-redux";
 import { MarkdownRenderer, Notice } from "obsidian";
+import { RootState } from "../store";
 import { PluginManager } from "../types";
 import PluginManagerPlugin from "../main";
+import { t } from "../i18n";
 
 interface Props {
     plugin: PluginManagerPlugin;
@@ -18,6 +21,7 @@ const PluginCommentCell: React.FC<Props> = ({
     plugin, Iplugin, editing, value, placeholder, onChange, onEdit, onBlur
 }) => {
     const divRef = useRef<HTMLDivElement>(null);
+    const language = useSelector((state: RootState) => state.settings.language);
 
     useEffect(() => {
         if (!editing && divRef.current) {
@@ -40,16 +44,16 @@ const PluginCommentCell: React.FC<Props> = ({
                             return filePath === href || f.name.replace(/\.md$/, '') === href;
                         });
                         if (matches.length > 1) {
-                            new Notice(`有多个名为 "${href}" 的笔记，请指定完整路径`);
+                            new Notice(t(language, "multipleNotes", { name: href }));
                         } if (matches.length === 0)
-                            new Notice(`未找到名为 "${href}" 的笔记`);
+                            new Notice(t(language, "noteNotFound", { name: href }));
                         await plugin.app.workspace.openLinkText(href, '', false);
                     });
                 });
 
             });
         }
-    }, [editing, value, placeholder, plugin]);
+    }, [editing, value, placeholder, plugin, language]);
     if (editing) {
         return (
             <textarea

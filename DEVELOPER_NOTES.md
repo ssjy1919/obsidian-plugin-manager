@@ -1,4 +1,4 @@
-﻿# Plugin Manager 开发说明文档
+# Plugin Manager 开发说明文档
 
 > 本文档面向后续接手的开发人员，说明项目架构、当前实现和注意事项。
 
@@ -8,7 +8,7 @@
 
 Plugin Manager 是一个 Obsidian 插件，用于管理本地已安装插件的启用状态、设备类型规则、延时启动和备注。
 
-当前实现侧重于本地插件列表管理与 Obsidian 插件启用/禁用控制。不包含更新检查、批量更新或定时调度模块。
+当前实现侧重于本地插件列表管理与 Obsidian 插件启用/禁用控制，不包含更新检查、批量更新或定时调度模块。
 
 ---
 
@@ -16,25 +16,29 @@ Plugin Manager 是一个 Obsidian 插件，用于管理本地已安装插件的�
 
 ```
 src/
-├── main.ts                    # 插件入口
-├── types.ts                   # 类型定义 + 默认设置
+├── main.ts                    # 插件入口、设置加载与旧数据迁移
+├── types.ts                   # 类型定义、默认设置、normalizePluginEntry
+├── i18n.ts                    # 中英文翻译与 t() 工具函数
 ├── store.ts                   # Redux 状态管理（@reduxjs/toolkit）
 ├── types/
 │   └── css.d.ts               # CSS 模块类型声明
-├── views/                     # 视图层
-│   ├── PluginManagerLeft.tsx   # ItemView 注册
-│   ├── PluginManagerView.tsx   # 主视图（插件列表表格）
+├── views/
+│   ├── PluginManagerLeft.tsx  # ItemView 注册
+│   ├── PluginManagerView.tsx  # 主视图（插件列表表格）
 │   ├── PluginManagerView.css
-│   ├── GroupView.tsx           # 搜索框（仅搜索，无标签管理）
+│   ├── GroupView.tsx          # 搜索框
 │   ├── GroupView.css
-│   ├── PluginCommentCell.tsx   # 备注单元格（Markdown 渲染 + 编辑）
-│   └── PMtools.ts              # 工具函数（插件刷新、启停、设备类型检测）
-├── components/                # 通用 UI 组件
-│   ├── Switch.tsx              # 开关组件
+│   ├── PluginCommentCell.tsx  # 备注单元格
+│   └── PMtools.ts             # 插件刷新、启停、设备规则、延时定时器
+├── components/
+│   ├── Switch.tsx             # 开关组件
 │   └── Switch.css
-└── setting/                   # 插件设置页面
-    ├── settingTab.tsx          # PluginSettingTab（React 渲染）
+└── setting/
+    ├── settingTab.tsx         # PluginSettingTab（React 渲染）
     └── settingTab.css
+scripts/
+└── check-release.mjs          # 发布一致性检查
+version-bump.mjs               # 版本号同步脚本
 ```
 
 ---
@@ -47,80 +51,112 @@ src/
 
 **生命周期：**
 - `onload()`:
-  1. 调用 `loadSettings()` 从 `data.json` 加载设置
+  1. 调用 `loadSettings()` 加载并迁移 `data.json`
   2. 注册视图、命令、ribbon 图标
-  3. 在 `onLayoutReady` 中：将设置同步到 Redux；调用 `applyDeviceRules()`；刷新插件信息 `getAllPlugins()`
+  3. 在 `onLayoutReady` 中：将设置同步到 Redux；调用 `applyDeviceRules()`；调用 `await getAllPlugins(this, true)` 刷新并落盘插件列表
   4. 挂载设置页面
-- `onunload()`：清理视图
+- `onunload()`:
+  1. 调用 `clearAllDelayedStarts()` 清理延时定时器
+  2. `detachLeavesOfType()` 关闭管理视图
+
+`loadSettings()` 会删除已废弃的 `pluginGroups`、`showPluginGroups` 字段，并通过 `normalizePluginEntry()` 为旧数据补充 `startEnabled`。
 
 ### 3.2 types.ts — 类型定义
 
-| 类型 | 用途 |
+**`PluginManager` 关键字段：**
+
+| 字段 | 说明 |
 |------|------|
-| `DeviceType` | `"phone" \| "tablet" \| "desktop"` |
-| `PluginManager` | 单个插件信息，包括 id、名称、启用状态、延时启动、备注、`disabledDeviceTypes` 等 |
-| `SortField` | 排序字段与顺序 |
-| `PluginManagerSettings` | 插件持久化设置 |
+| `enabled` | 当前设备上的实际运行状态（显示用） |
+| `startEnabled` | 用户是否希望启用该插件（全局意图，跨设备保存） |
+| `disabledDeviceTypes` | 禁用列表（deny-list） |
+| `delayStart` | 延时启动秒数 |
+| `switchTime` | 最后更改时间 |
+| `comment` | 用户备注 |
+
+`normalizePluginEntry()` 用于兼容旧数据：
+- `disabledDeviceTypes` 包含全部三种设备 → `startEnabled = false`
+- 空列表 → `startEnabled = enabled`
+- 部分禁用 → `startEnabled = true`
 
 **`PluginManagerSettings` 字段：**
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `pluginManager` | `PluginManager[]` | 当前插件管理页面的数据 |
-| `secondPluginManager` | `PluginManager[]` | 备份配置，用于恢复插件状态 |
+| `secondPluginManager` | `PluginManager[]` | 备份配置，用于恢复 |
 | `sortField` | `SortField` | 当前排序字段与顺序 |
-| `pluginSettingNewWindow` | `boolean` | 是否在新窗口打开插件设置页面 |
+| `showPluginInitial` | `string` | 当前首字母筛选 |
+| `pluginSettingNewWindow` | `boolean` | 是否在新窗口打开管理页面 |
+| `language` | `Language` | 插件界面语言（`zh` / `en`） |
 
-> 原有的 `pluginGroups`、`showPluginGroups`、`showPluginInitial`、`currentDevice`、`knownDevices` 字段已随标签功能和设备 ID 系统一并移除。
+`Language = "zh" | "en"`，默认 `zh`。`loadSettings()` 会把未知值归一化为 `zh`。
+
+### 3.3.1 i18n.ts — 翻译层
+
+- `translations`：`zh` / `en` 两套文案
+- `t(language, key, params?)`：按当前语言取文案并替换 `{placeholder}`
+- 所有用户可见文案都应通过 `t()`，不要直接写死中文字符串
+- 命令名和 ribbon 标题在插件加载时读取语言；设置页切换语言后主界面和提示即时生效，命令面板/侧边栏图标在下次启动时同步
 
 ### 3.3 store.ts — Redux 状态管理
 
-使用 `@reduxjs/toolkit`，只有一个 slice：
+只有一个 `settings` slice：
 
-**`settings` slice**：
 - `updataSettings`：浅合并更新设置对象
 - `updataPluginManager`：更新 `pluginManager` 数组
-- `updataPluginGroups`：更新 `pluginGroups` 数组（保留但当前未使用）
 
-**注意：** `updataSettings` 为浅合并，只有顶层字段会被覆盖。
+注意：`updataSettings` 是浅合并，只有顶层字段会被覆盖。
 
 ### 3.4 views/ — 视图层
 
 | 文件 | 职责 |
 |------|------|
 | `PluginManagerLeft.tsx` | 注册 `ItemView`，定义视图类型 `plugin-manager-left-view` |
-| `PluginManagerView.tsx` | 主视图，展示插件列表，并提供搜索、排序、设备类型规则、延时启动、备注、保存/恢复功能 |
-| `GroupView.tsx` | 仅搜索框，按插件名称或备注内容过滤 |
-| `PluginCommentCell.tsx` | 备注单元格，使用 Obsidian `MarkdownRenderer` 渲染，点击进入编辑模式 |
-| `PMtools.ts` | 插件状态刷新、启用/禁用控制、设备类型检测、视图激活等工具函数 |
+| `PluginManagerView.tsx` | 主视图：搜索、排序、设备规则、延时、备注、保存/恢复 |
+| `GroupView.tsx` | 仅搜索框 |
+| `PluginCommentCell.tsx` | Markdown 备注渲染与编辑 |
+| `PMtools.ts` | 插件状态刷新、启停、设备检测、延时定时器 |
 
 ### 3.5 PMtools.ts — 工具函数
 
+**内部类型封装：**
+
+- `InternalApp` / `InternalPlugins`：为 Obsidian 未公开的 `app.plugins`、`app.setting`、`isMobile` 提供类型
+- `getApp()`：带类型地访问全局 `app`
+- `getUserAgentData()`：封装 `navigator.userAgentData`
+
+**延时定时器：**
+
 | 函数 | 作用 |
 |------|------|
-| `activateMiddleView(plugin)` | 在中间区域或新窗口打开插件管理页面 |
-| `getAllPlugins(plugin)` | 读取 Obsidian 插件清单并合并本地数据（保留已存储的 `disabledDeviceTypes`，新插件从启用状态推导） |
-| `disablePlugin(pluginId)` | 持久化禁用插件（`disablePluginAndSave`） |
-| `enablePlugin(pluginId)` | 持久化启用插件（`enablePluginAndSave`） |
-| `tempEnablePlugin(pluginId)` | 临时启用插件（不持久化，重启后恢复） |
-| `tempDisablePlugin(pluginId)` | 临时禁用插件（不持久化，重启后恢复） |
-| `openPluginSettings(iplugin, plugin)` | 打开指定插件的设置页 |
-| `getSwitchTimeByPluginId(pluginId)` | 查询插件最后修改时间 |
-| `getDeviceType()` | 检测当前设备类型（phone/tablet/desktop），优先使用 `navigator.userAgentData.mobile` |
-| `shouldPluginRun(plugin, currentDeviceType)` | 判断当前设备类型是否在禁用列表中 |
-| `applyDeviceRules(plugin)` | 启动时应用设备规则，处理临时启用/禁用与延时启动 |
+| `scheduleDelayedEnable(pluginId, delaySeconds, plugin)` | 安排延时临时启用，同一插件先取消旧定时器 |
+| `clearDelayedStart(pluginId)` | 取消单个插件定时器 |
+| `clearAllDelayedStarts()` | 取消全部定时器，插件卸载时调用 |
+
+**插件状态函数：**
+
+| 函数 | 作用 |
+|------|------|
+| `getAllPlugins(plugin, save = false)` | 读取 Obsidian 插件清单并合并本地数据；首次启动传 `true` 落盘 |
+| `disablePlugin(pluginId)` | 持久化禁用（`disablePluginAndSave`） |
+| `enablePlugin(pluginId)` | 持久化启用（`enablePluginAndSave`） |
+| `tempEnablePlugin(pluginId)` | 当前会话启用，不持久化 |
+| `tempDisablePlugin(pluginId)` | 当前会话禁用，不持久化 |
+| `applyDeviceRules(plugin)` | 启动时应用设备规则与延时启动 |
 
 ### 3.6 settingTab.tsx — 插件设置页面
 
-`PluginManagerSettingTab` 使用 React 渲染，当前仅提供：
+提供两个设置项：
+
+- `language`：界面语言（中文 / English）
 - `pluginSettingNewWindow`：桌面端是否在新窗口打开管理页面
 
 ### 3.7 PluginCommentCell.tsx — 备注单元格
 
-- 非编辑模式：使用 Obsidian `MarkdownRenderer.render()` 渲染备注内容
-- 点击非链接区域进入编辑模式（textarea）
-- 内部链接（`a.internal-link`）：拦截点击，使用 `workspace.openLinkText` 打开
-- `useEffect` 依赖 `[editing, value, placeholder, plugin]`（不含 `Iplugin` 以避免频繁重渲染）
+- 非编辑模式：使用 Obsidian `MarkdownRenderer.render()` 渲染
+- 点击非链接区域进入编辑模式
+- 内部链接使用 `workspace.openLinkText` 打开
 
 ---
 
@@ -130,12 +166,12 @@ src/
 Obsidian app.plugins.manifests
         │
         ▼
-  PMtools.getAllPlugins()
+  PMtools.getAllPlugins(plugin, save?)
         │
         ▼
   Redux store.settings
   ┌──────────────────────────┐
-  │ pluginManager[]          │ ◄── 插件列表数据
+  │ pluginManager[]          │ ◄── 列表数据（enabled + startEnabled）
   │ secondPluginManager[]    │ ◄── 备份配置
   │ sortField                │ ◄── 排序配置
   │ pluginSettingNewWindow   │ ◄── 新窗口选项
@@ -145,86 +181,94 @@ Obsidian app.plugins.manifests
   PluginManagerView / GroupView / PluginCommentCell
         │
         ▼
-  dispatch + plugin.saveData() → data.json 持久化
+  dispatch + plugin.saveData() → data.json
 ```
 
-**数据持久化：** 只有 `data.json`，使用 Obsidian 内置 `loadData()` / `saveData()`。
+启动时 `getAllPlugins(this, true)` 会直接保存，保证全新安装也有可用的 `data.json`。
 
 ---
 
-## 5. 设备类型与延时启动
+## 5. 状态模型
 
-当前实现区分持久化启用状态与临时运行状态：
-- `disablePlugin` / `enablePlugin`：持久化更改插件开启状态
-- `tempDisablePlugin` / `tempEnablePlugin`：临时更改当前会话中的插件状态
+### 5.1 `enabled` 与 `startEnabled`
 
-`applyDeviceRules()` 启动时会根据当前设备类型决定是否临时禁用或启用插件。
+- `enabled`：当前设备上是否实际运行，随设备类型和 Obsidian 实际状态变化
+- `startEnabled`：用户是否希望启用该插件，作为跨设备持久化的意图
 
-`delayStart` 表示插件在可运行设备上启动的延迟秒数，若大于 0，则会通过 `setTimeout(..., delayStart * 1000)` 延迟启动。
+`applyDeviceRules()` 使用 `startEnabled` 判断是否应该临时启用或安排延时；`getAllPlugins()` 使用 `startEnabled` 保留意图，用 `enabled` 刷新显示状态。
 
-### 5.1 `disabledDeviceTypes` 语义
+### 5.2 `disabledDeviceTypes` 语义
 
-`disabledDeviceTypes` 是**禁用列表**（deny-list）：
+`disabledDeviceTypes` 是禁用列表（deny-list）：
+
 - `[]` → 所有设备类型均启用
-- `["phone"]` → 仅手机端禁用，平板和电脑启用
+- `["phone"]` → 仅手机端禁用
 - `["phone", "tablet", "desktop"]` → 所有设备类型均禁用
 
-### 5.2 视觉状态
+### 5.3 旧数据迁移
 
-设备类型图标的视觉状态由 CSS class `checked` 控制：
-- **无 `checked` class**（亮边框）→ 该设备类型**启用**（不在 `disabledDeviceTypes` 中）
-- **有 `checked` class**（透明边框 + 30% 透明度）→ 该设备类型**禁用**（在 `disabledDeviceTypes` 中）
-
-### 5.3 `getAllPlugins` 对 `disabledDeviceTypes` 的处理
-
-`getAllPlugins` 在刷新插件列表时：
-- **已存在的插件**：保留 store 中的 `disabledDeviceTypes`，不从 Obsidian 启用状态重新推导
-- **新发现的插件**：根据 `isEnabled` 推导——已启用→`[]`，未启用→`["phone", "tablet", "desktop"]`
-
-### 5.4 `getDeviceType()` 检测策略
-
-设备类型检测优先级：
-1. `navigator.userAgentData?.mobile`（Chrome DevTools 模拟时可靠）
-2. `navigator.userAgent` 正则匹配（iPhone/iPod/iPad/Android）
-3. `navigator.maxTouchPoints > 1`（区分 iPadOS 13+ 和 Mac 触控板）
-
-### 5.5 `applyDeviceRules()` 策略
-
-| 情况 | 持久化状态 | 启动时操作 |
-|------|-----------|-----------|
-| 当前设备类型被禁用 | 已持久化禁用 | `tempDisablePlugin` |
-| 部分禁用，当前设备允许 | 已持久化禁用 | `tempEnablePlugin`（临时启用） |
-| 全部启用 | 已持久化启用 | 仅处理延时启动 |
+`loadSettings()` 对 `pluginManager` 和 `secondPluginManager` 统一执行 `normalizePluginEntry()`，因此旧版 `data.json` 不需要手工补字段。
 
 ---
 
-## 6. 备注与链接
+## 6. 延时启动
 
-备注单元格（`PluginCommentCell`）使用 Markdown 渲染。每个插件的备注占位符末尾自动附加一个链接：
+### 当前会话
+
+给已启用插件设置延时时，会先 `disablePluginAndSave` 持久化禁用，再立即 `tempEnablePlugin` 恢复运行。当前会话不等待。
+
+### 下次启动
+
+`applyDeviceRules()` 在启动时读取 `delayStart > 0` 的插件：
+
+1. 先持久化禁用，确保 Obsidian 不会提前加载
+2. 通过 `scheduleDelayedEnable()` 在 N 秒后临时启用
+3. 定时器触发后调用 `getAllPlugins()` 刷新列表
+
+### 定时器管理
+
+- 每个插件只保留一个定时器，重复设置会先取消旧定时器
+- 切换开关、修改延时、切换设备规则时都会取消对应定时器
+- 插件卸载时 `clearAllDelayedStarts()` 清理全部定时器
+
+### 平台限制
+
+Obsidian 在 `onLayoutReady` 之前就会加载持久化启用的插件。由本插件写入的配置可以保证下次启动不提前加载；如果用户在 Obsidian 原生设置里直接启用插件，Plugin Manager 只能事后卸载再延时，无法做到真正的“启动前不加载”。
+
+---
+
+## 7. 设备类型规则
+
+`getDeviceType()` 检测优先级：
+
+1. `navigator.userAgentData?.mobile`
+2. `navigator.userAgent` 正则匹配
+3. `navigator.maxTouchPoints > 1`
+
+`applyDeviceRules()` 策略：
+
+| 情况 | 操作 |
+|------|------|
+| 当前设备类型被禁用 | `tempDisablePlugin`，并取消延时定时器 |
+| 部分禁用且当前设备允许，`delayStart = 0` | `tempEnablePlugin` |
+| 部分禁用且当前设备允许，`delayStart > 0` | 持久化禁用 + 延时临时启用 |
+| 全部启用且 `delayStart > 0` | 持久化禁用 + 延时临时启用 |
+| `startEnabled = false` | 不启用，并取消该插件延时定时器 |
+
+---
+
+## 8. 备注与链接
+
+每个插件的备注占位符末尾自动附加一个链接：
 
 | 插件 ID | 链接文字 | 链接地址 |
 |---------|---------|---------|
 | `obsidian-plugin-manager` | 仓库主页 | `https://github.com/ssjy1919/obsidian-plugin-manager/tree/main` |
 | 其他插件 | 社区主页 | `obsidian://show-plugin?id={插件ID}` |
 
-- `obsidian://show-plugin` 是 Obsidian 原生协议，点击后直接在应用内打开社区插件市场对应页面
-- 进入编辑模式时，若备注为空，自动将描述+链接预填到 textarea 中供用户编辑
-
 ---
 
-## 7. UI 布局
-
-### 7.1 首字母索引（`.grouping`）
-
-左侧 ABCD 首字母索引使用 `position: absolute` 相对于 `.workspace-leaf-content[data-type="plugin-manager-left-view"]` 定位，垂直居中靠左。不随表格滚动。
-
-### 7.2 表格
-
-表头和搜索栏（`.pluginManager-table-header`、`thead`）使用正常文档流，跟随表格滚动。
-
----
-
-## 8. 命令列表
+## 9. 命令列表
 
 | 命令 ID | 名称 | 功能 |
 |---------|------|------|
@@ -232,25 +276,40 @@ Obsidian app.plugins.manifests
 
 ---
 
-## 9. 构建与开发
+## 10. 构建、测试与发布
 
 ```bash
 npm install
 npm run dev
 npm run build
+npm test
 ```
-
-`npm run dev` 会运行 `node esbuild.config.mjs`，监听 `src/main.ts` 并输出 `main.js` 和 `styles.css`。
 
 `npm run build` 会先执行 `tsc -noEmit -skipLibCheck`，再执行 `node esbuild.config.mjs production`。
 
+`npm test` 会运行 `scripts/check-release.mjs`，检查：
+
+- `package.json` 没有 `"type": "module"`
+- package 版本与 manifest 版本一致
+- `versions.json` 包含当前版本
+- `version-bump.mjs` 存在
+
+发布版本：
+
+```bash
+npm version patch
+```
+
+`npm version` 会触发 `version-bump.mjs`，同步更新 `manifest.json` 和 `versions.json`。
+
 ---
 
-## 10. 注意事项
+## 11. 注意事项
 
 - `applyDeviceRules()` 会跳过移动端不支持的 `isDesktopOnly` 插件
-- `PluginManagerView` 中的"保存/恢复"按钮依赖 `secondPluginManager` 备份配置
-- `handleChange`（主开关切换）会将 `disabledDeviceTypes` 重置为 `[]`（开）或全部禁用（关）
-- `handleDeviceTypeToggle` 在部分禁用模式下采用"先持久化禁用，再临时启用"的策略
-- 原有的设备 ID 系统（`DeviceInfo`、`currentDevice`、`knownDevices`、`deviceRules`）已全部移除，替换为基于 `DeviceType` 的设备类型控制
-- 原有的标签功能（`MakeTagsView`、`constants.ts`）已删除
+- `saveConfig()` 会深拷贝 `tags` 和 `disabledDeviceTypes`，避免备份与当前列表共享引用
+- `restoreConfig()` 会跳过 Plugin Manager 自身，并在恢复后重新执行 `applyDeviceRules()`
+- `handleChange` 会同步更新 `startEnabled` 和 `disabledDeviceTypes`
+- `handleDeviceTypeToggle` 在部分禁用模式下采用“先持久化禁用，再临时启用”的策略
+- 设备图标 tooltip 中 `checked` 表示“该设备类型禁用”
+- 内部 API 统一通过 `InternalApp` 类型访问，项目中不使用 `@ts-ignore`

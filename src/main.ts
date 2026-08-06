@@ -1,12 +1,13 @@
 import { Plugin } from "obsidian";
-import { DEFAULT_SETTINGS, PluginManagerSettings } from "./types";
+import { DEFAULT_SETTINGS, PluginManager, PluginManagerSettings, normalizePluginEntry } from "./types";
 import { PluginManagerSettingTab } from "./setting/settingTab";
 import {
 	PluginManagerLeft,
 	VIEW_TYPE_PLUGIN_MANAGER,
 } from "./views/PluginManagerLeft";
-import { activateMiddleView, getAllPlugins, applyDeviceRules } from "./views/PMtools";
+import { activateMiddleView, getAllPlugins, applyDeviceRules, clearAllDelayedStarts } from "./views/PMtools";
 import { store, updataSettings } from "./store";
+import { t } from "./i18n";
 
 export default class PluginManagerPlugin extends Plugin {
 	public settings!: PluginManagerSettings;
@@ -23,7 +24,7 @@ export default class PluginManagerPlugin extends Plugin {
 			}
 
 			await applyDeviceRules(this);
-			getAllPlugins(this);
+			await getAllPlugins(this, true);
 		});
 
 		this.registerView(
@@ -33,13 +34,13 @@ export default class PluginManagerPlugin extends Plugin {
 
 		this.addCommand({
 			id: "pluginManagerCenterLeafView",
-			name: "打开插件管理视图",
+			name: t(this.settings.language, "openPluginManager"),
 			callback: () => {
 				activateMiddleView(this);
 			},
 		});
 
-		this.addRibbonIcon("blocks", "插件管理", () => {
+		this.addRibbonIcon("blocks", t(this.settings.language, "pluginManager"), () => {
 			activateMiddleView(this);
 		});
 
@@ -47,10 +48,23 @@ export default class PluginManagerPlugin extends Plugin {
 	}
 
 	onunload() {
+		clearAllDelayedStarts();
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE_PLUGIN_MANAGER);
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const loaded = ((await this.loadData()) ?? {}) as Record<string, unknown>;
+		delete loaded.pluginGroups;
+		delete loaded.showPluginGroups;
+		if (Array.isArray(loaded.pluginManager)) {
+			loaded.pluginManager = (loaded.pluginManager as Partial<PluginManager>[]).map(normalizePluginEntry);
+		}
+		if (Array.isArray(loaded.secondPluginManager)) {
+			loaded.secondPluginManager = (loaded.secondPluginManager as Partial<PluginManager>[]).map(normalizePluginEntry);
+		}
+		if (loaded.language !== "zh" && loaded.language !== "en") {
+			loaded.language = "zh";
+		}
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded) as PluginManagerSettings;
 	}
 }

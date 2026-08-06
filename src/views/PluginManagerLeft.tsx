@@ -4,6 +4,7 @@ import { Provider } from "react-redux";
 import PluginManagerPlugin from "../main";
 import { store } from "../store";
 import PluginManagerView from "./PluginManagerView";
+import { t } from "../i18n";
 
 export const VIEW_TYPE_PLUGIN_MANAGER = 'plugin-manager-left-view';
 
@@ -21,7 +22,7 @@ export class PluginManagerLeft extends ItemView {
 		return VIEW_TYPE_PLUGIN_MANAGER;
 	}
 	getDisplayText() {
-		return '插件管理';
+		return t(store.getState().settings.language, "pluginManager");
 	}
 	onOpen() {
 		this.root = createRoot(this.containerEl.children[1]);

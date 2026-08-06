@@ -2,19 +2,26 @@ import PluginManagerPlugin from "../main";
 import { Switch } from "../components/Switch";
 import "./PluginManagerView.css"
 import { useDispatch } from "react-redux";
-import { RootState, updataSettings, updataPluginManager } from "../store";
+import { RootState, store, updataSettings, updataPluginManager } from "../store";
 import { useSelector } from "react-redux";
-import { DeviceType, PluginManager } from "../types";
-import { disablePlugin, enablePlugin, tempEnablePlugin, getAllPlugins, getDeviceType, getSwitchTimeByPluginId, openPluginSettings } from "./PMtools";
+import { DeviceType, PluginManager, normalizePluginEntry } from "../types";
+import { applyDeviceRules, clearAllDelayedStarts, clearDelayedStart, disablePlugin, enablePlugin, getAllPlugins, getDeviceType, getSwitchTimeByPluginId, InternalApp, openPluginSettings, tempEnablePlugin } from "./PMtools";
 import { useMemo, useState } from "react";
 import GroupView from "./GroupView";
 import { Notice } from "obsidian";
 import PluginCommentCell from "./PluginCommentCell";
+import { t, TranslationKey } from "../i18n";
 
 const DEVICE_TYPE_ICONS: Record<DeviceType, string> = {
 	phone: "📱",
 	tablet: "📋",
 	desktop: "💻",
+};
+
+const DEVICE_TYPE_KEYS: Record<DeviceType, TranslationKey> = {
+	phone: "devicePhone",
+	tablet: "deviceTablet",
+	desktop: "deviceDesktop",
 };
 
 interface PluginManagerViewProps {
@@ -27,6 +34,7 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 	const storeField = useSelector((state: RootState) => state.settings.sortField.field);
 	const storeOrder = useSelector((state: RootState) => state.settings.sortField.order);
 	const showPluginInitial = useSelector((state: RootState) => state.settings.showPluginInitial);
+	const language = useSelector((state: RootState) => state.settings.language);
 	const [pluginNote, setPluginNote] = useState<{ [id: string]: boolean }>({});
 	const dispatch = useDispatch();
 	const [searchQuery, setSearchQuery] = useState<string>("");
@@ -44,18 +52,19 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 	], [pluginManager]);
 
 	const handleChange = async (iPlugin: PluginManager) => {
-		//@ts-ignore
-		if (plugin.app.isMobile && iPlugin.isDesktopOnly) {
-			new Notice("该插件不支持移动端使用");
+		if ((plugin.app as InternalApp).isMobile && iPlugin.isDesktopOnly) {
+			new Notice(t(language, "unsupportedOnMobile"));
 			return;
 		}
 
+		clearDelayedStart(iPlugin.id);
 		const turningOn = !iPlugin.enabled;
 		const updatadPlugins = pluginManager.map(p => {
 			if (p.id === iPlugin.id) {
 				return {
 					...p,
 					enabled: turningOn,
+					startEnabled: turningOn,
 					switchTime: new Date().getTime(),
 					// 开启 → 全部设备类型启用；关闭 → 全部设备类型禁用
 					disabledDeviceTypes: turningOn ? [] : (["phone", "tablet", "desktop"] as DeviceType[]),
@@ -65,8 +74,13 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 		});
 
 		if (turningOn) {
-			// 全部设备类型启用 → 持久化启用（重启后自动加载）
-			await enablePlugin(iPlugin.id);
+			// 全部设备类型启用；若配置了延时，先持久化禁用，再立即恢复当前会话运行。
+			if (iPlugin.delayStart > 0) {
+				await disablePlugin(iPlugin.id);
+				await tempEnablePlugin(iPlugin.id);
+			} else {
+				await enablePlugin(iPlugin.id);
+			}
 		} else {
 			// 全部设备类型禁用 → 持久化禁用（重启后不加载）
 			await disablePlugin(iPlugin.id);
@@ -76,6 +90,7 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 		await plugin.saveData(newSettings);
 		dispatch(updataPluginManager(updatadPlugins));
 		getAllPlugins(plugin);
+		new Notice(t(language, turningOn ? "enabled" : "disabled", { name: iPlugin.name }), 3000);
 	}
 
 	const handleDelayStartChange = async (iPlugin: PluginManager, newDelayStart: number) => {
@@ -90,18 +105,29 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 			}
 			return p
 		});
-		if (iPlugin.enabled)
-			if (newDelayStart > 0) {
+
+		clearDelayedStart(iPlugin.id);
+		if (newDelayStart > 0) {
+			if (iPlugin.enabled) {
+				// 持久化禁用，当前会话立即恢复；下次启动时按新延时生效。
 				await disablePlugin(iPlugin.id);
-				//@ts-ignore
-				await app.plugins.enablePlugin(iPlugin.id);
-			} else if (newDelayStart === 0) {
-				await enablePlugin(iPlugin.id);
+				await tempEnablePlugin(iPlugin.id);
 			}
+		} else if (iPlugin.enabled) {
+			await enablePlugin(iPlugin.id);
+		}
 		const newSettings = { ...storeSettings, pluginManager: updatadPlugins };
 		dispatch(updataPluginManager(updatadPlugins));
 		await plugin.saveData(newSettings);
 		getAllPlugins(plugin);
+		new Notice(
+			newDelayStart > 0
+				? iPlugin.enabled
+					? t(language, "delaySetNextStart", { seconds: newDelayStart })
+					: t(language, "delaySaved", { seconds: newDelayStart })
+				: t(language, "delayCancelled"),
+			3000
+		);
 	}
 
 	const handleCommentChange = async (iPlugin: PluginManager, newComment: string) => {
@@ -216,43 +242,73 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 		}
 	}
 	const saveConfig = async () => {
-		const newSettings = { ...storeSettings, secondPluginManager: storeSettings.pluginManager };
+		const currentSettings = store.getState().settings;
+		const snapshot = currentSettings.pluginManager.map(p => ({
+			...p,
+			tags: [...(p.tags || [])],
+			disabledDeviceTypes: [...(p.disabledDeviceTypes || [])],
+		}));
+		const newSettings = { ...currentSettings, secondPluginManager: snapshot };
 		dispatch(updataSettings(newSettings));
 		await plugin.saveData(newSettings);
 		getAllPlugins(plugin);
-		new Notice('插件配置保存成功', 3000);
+		new Notice(t(language, "configSaved"), 3000);
 	}
 	const restoreConfig = async () => {
 		try {
-			new Notice('插件状态恢复中...', 2000);
-			const promises = storeSettings.secondPluginManager.map(async (p) => {
-				//@ts-ignore
-				if (plugin.app.isMobile && p.isDesktopOnly) return;
-				if (p.delayStart > 0) {
-					p.enabled
-						//@ts-ignore
-						? await plugin.app.plugins.enablePlugin(p.id)
-						//@ts-ignore
-						: await plugin.app.plugins.disablePlugin(p.id);
-				} else {
-					p.enabled ? await enablePlugin(p.id) : await disablePlugin(p.id);
-				}
-			});
+			new Notice(t(language, "restoring"), 2000);
+			clearAllDelayedStarts();
+
+			const currentSettings = store.getState().settings;
+			const currentDeviceType = getDeviceType();
+			const backup = currentSettings.secondPluginManager;
+
+			const promises = backup
+				.filter(p => p.id && p.id !== "obsidian-plugin-manager")
+				.map(async (p) => {
+					if ((plugin.app as InternalApp).isMobile && p.isDesktopOnly) return;
+					const disabledDeviceTypes = p.disabledDeviceTypes || [];
+					const disabledForCurrent = disabledDeviceTypes.includes(currentDeviceType);
+					const startEnabled = normalizePluginEntry(p).startEnabled;
+					const shouldBeEnabled = startEnabled && !disabledForCurrent;
+					const keepPersistentEnabled =
+						shouldBeEnabled && disabledDeviceTypes.length === 0 && p.delayStart === 0;
+
+					if (keepPersistentEnabled) {
+						await enablePlugin(p.id);
+					} else {
+						await disablePlugin(p.id);
+					}
+				});
 			await Promise.all(promises);
 
-			const newSettings = { ...storeSettings, pluginManager: storeSettings.secondPluginManager };
+			const restoredPlugins = backup
+				.filter(p => p.id)
+				.map(p => ({
+					...p,
+					startEnabled: normalizePluginEntry(p).startEnabled,
+					enabled: normalizePluginEntry(p).startEnabled && !(p.disabledDeviceTypes || []).includes(currentDeviceType),
+					tags: [...(p.tags || [])],
+					disabledDeviceTypes: [...(p.disabledDeviceTypes || [])],
+				}));
+
+			const newSettings = { ...currentSettings, pluginManager: restoredPlugins };
 			dispatch(updataSettings(newSettings));
 			await plugin.saveData(newSettings);
+
+			await applyDeviceRules(plugin);
 			getAllPlugins(plugin);
-			new Notice('插件状态恢复完成', 5000);
+			await plugin.saveData(store.getState().settings);
+			new Notice(t(language, "restored"), 5000);
 		} catch (error) {
 			console.error('恢复插件配置失败:', error);
-			new Notice('恢复插件配置失败', 5000);
+			new Notice(t(language, "restoreFailed"), 5000);
 		}
 	};
 
 	const handleDeviceTypeToggle = async (iPlugin: PluginManager, type: DeviceType) => {
 		const currentDeviceType = getDeviceType();
+		clearDelayedStart(iPlugin.id);
 
 		const list = [...(iPlugin.disabledDeviceTypes || [])];
 		const idx = list.indexOf(type);
@@ -269,7 +325,13 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 
 		const updated = pluginManager.map(p =>
 			p.id === iPlugin.id
-				? { ...p, disabledDeviceTypes: list, enabled: newEnabled, switchTime: new Date().getTime() }
+				? {
+					...p,
+					startEnabled: allEnabled ? true : allDisabled ? false : true,
+					disabledDeviceTypes: list,
+					enabled: newEnabled,
+					switchTime: new Date().getTime(),
+				}
 				: p
 		);
 
@@ -280,7 +342,12 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 
 		// 再执行实际的启用/禁用操作（await 完成后插件状态才真正改变）
 		if (allEnabled) {
-			await enablePlugin(iPlugin.id);
+			if (iPlugin.delayStart > 0) {
+				await disablePlugin(iPlugin.id);
+				await tempEnablePlugin(iPlugin.id);
+			} else {
+				await enablePlugin(iPlugin.id);
+			}
 		} else if (allDisabled) {
 			await disablePlugin(iPlugin.id);
 		} else {
@@ -292,6 +359,17 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 
 		// 最后刷新插件列表（此时 app.plugins.plugins 已是最新状态）
 		getAllPlugins(plugin);
+		new Notice(
+			t(
+				language,
+				list.includes(type) ? "deviceDisabled" : "deviceEnabled",
+				{
+					name: iPlugin.name,
+					type: t(language, DEVICE_TYPE_KEYS[type]),
+				}
+			),
+			3000
+		);
 	};
 
 	return (
@@ -313,40 +391,45 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 			<div className="pluginManager-table">
 				<div className="pluginManager-table-header">
 					<GroupView
+						language={language}
 						searchQuery={searchQuery}
 						setSearchQuery={setSearchQuery}
 					/>
 					<div className="header-actions">
-						<button title="恢复所有插件开关状态" onClick={() => restoreConfig()}>恢复</button>
-						<button title="保存所有插件开关状态" onClick={() => saveConfig()}>保存</button>
+						<button title={t(language, "restoreAllTitle")} onClick={() => restoreConfig()}>{t(language, "restore")}</button>
+						<button title={t(language, "saveAllTitle")} onClick={() => saveConfig()}>{t(language, "save")}</button>
 					</div>
 				</div>
 				<table>
 					<thead>
 						<tr>
 							<th onClick={() => handleHeaderClick('name')} >
-								一共{pluginManager.length}个插件，开启{getEnabledPlugins}关闭{getDisabledPlugins}{" "}
+								{t(language, "pluginCount", {
+									count: pluginManager.length,
+									enabled: getEnabledPlugins,
+									disabled: getDisabledPlugins,
+								})}{" "}
 								{storeField === "name" && storeOrder === "asc" && "↑"}
 								{storeField === "name" && storeOrder === "desc" && "↓"}
 							</th>
 							<th onClick={() => handleHeaderClick('enabled')} >
-								状态{" "}
+								{t(language, "status")}{" "}
 								{storeField === "enabled" && storeOrder === "asc" && "↑"}
 								{storeField === "enabled" && storeOrder === "desc" && "↓"}
 							</th>
 							<th onClick={() => handleHeaderClick('delayStart')} >
-								延时启动(秒)
+								{t(language, "delayStart")}
 								{storeField === "delayStart" && storeOrder === "asc" && "↑"}
 								{storeField === "delayStart" && storeOrder === "desc" && "↓"}
 							</th>
-							<th>启停设备类型</th>
+							<th>{t(language, "deviceTypes")}</th>
 							<th onClick={() => handleHeaderClick('switchTime')} >
-								更改时间{" "}
+								{t(language, "modifiedTime")}{" "}
 								{storeField === "switchTime" && storeOrder === "asc" && "↑"}
 								{storeField === "switchTime" && storeOrder === "desc" && "↓"}
 							</th>
 							<th onClick={() => handleHeaderClick('comment')} >
-								备注{" "}
+								{t(language, "notes")}{" "}
 								{storeField === "comment" && storeOrder === "asc" && "↑"}
 								{storeField === "comment" && storeOrder === "desc" && "↓"}
 							</th>
@@ -359,11 +442,9 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 								return (
 									<tr key={Iplugin.id}>
 										<td className={Iplugin.enabled ? "enabled" : "disable"} onClick={() => { handleSettingClick(Iplugin) }}>
-											{/* @ts-ignore */}
-											<div className={`plugin-name ${plugin.app.isMobile && Iplugin.isDesktopOnly ? "isDesktopOnly" : ""}`}>
+											<div className={`plugin-name ${(plugin.app as InternalApp).isMobile && Iplugin.isDesktopOnly ? "isDesktopOnly" : ""}`}>
 												<div>{Iplugin.name}</div>
-												{/* @ts-ignore */}
-												<div className="plugin-setting">{Iplugin.enabled && plugin.app.setting.pluginTabs.find((P: { id: string }) => P.id === Iplugin.id) ? "  ⚙️" : "   "}<div className="version">{Iplugin.version}</div></div>
+												<div className="plugin-setting">{Iplugin.enabled && (plugin.app as InternalApp).setting.pluginTabs.find((P: { id: string }) => P.id === Iplugin.id) ? "  ⚙️" : "   "}<div className="version">{Iplugin.version}</div></div>
 											</div>
 										</td>
 										<td>
@@ -396,7 +477,7 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 													const isSelf = Iplugin.id === "obsidian-plugin-manager";
 													const isChecked = !isSelf && (Iplugin.disabledDeviceTypes || []).includes(type);
 													return (
-														<label key={type} className={`device-type-cb ${isChecked ? "checked" : ""}`} title={isSelf ? "插件管理器始终启用" : isChecked ? `在${type === "phone" ? "手机" : type === "tablet" ? "iPad" : "电脑"}启用` : `在${type === "phone" ? "手机" : type === "tablet" ? "iPad" : "电脑"}上禁用`}>
+														<label key={type} className={`device-type-cb ${isChecked ? "checked" : ""}`} title={isSelf ? t(language, "alwaysEnabled") : t(language, isChecked ? "disabledOn" : "enabledOn", { type: t(language, DEVICE_TYPE_KEYS[type]) })}>
 															<input
 																type="checkbox"
 																checked={isChecked}
@@ -420,14 +501,14 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 												Iplugin={Iplugin}
 												editing={!!pluginNote[Iplugin.id]}
 												value={Iplugin.comment}
-												placeholder={`${Iplugin.description || ""}\n[${Iplugin.id === "obsidian-plugin-manager" ? "仓库主页" : "社区主页"}](${Iplugin.id === "obsidian-plugin-manager" ? "https://github.com/ssjy1919/obsidian-plugin-manager/tree/main" : `obsidian://show-plugin?id=${Iplugin.id}`})`}
+												placeholder={`${Iplugin.description || ""}\n[${t(language, Iplugin.id === "obsidian-plugin-manager" ? "repoHome" : "communityHome")}](${Iplugin.id === "obsidian-plugin-manager" ? "https://github.com/ssjy1919/obsidian-plugin-manager/tree/main" : `obsidian://show-plugin?id=${Iplugin.id}`})`}
 												onChange={v => handleCommentChange(Iplugin, v)}
 												onEdit={() => {
 													if (!Iplugin.comment && Iplugin.description) {
 														const link = Iplugin.id === "obsidian-plugin-manager"
 															? "https://github.com/ssjy1919/obsidian-plugin-manager/tree/main"
 															: `obsidian://show-plugin?id=${Iplugin.id}`;
-														const label = Iplugin.id === "obsidian-plugin-manager" ? "仓库主页" : "社区主页";
+														const label = t(language, Iplugin.id === "obsidian-plugin-manager" ? "repoHome" : "communityHome");
 														handleCommentChange(Iplugin, `${Iplugin.description}\n[${label}](${link})`);
 													}
 													setPluginNote({ ...pluginNote, [Iplugin.id]: true });

@@ -11,9 +11,6 @@ const settingsSlice = createSlice({
 		updataPluginManager: (state, action) => {
 			state.pluginManager = action.payload;
 		},
-		updataPluginGroups: (state, action) => {
-			state.pluginGroups = action.payload;
-		},
 	},
 });
 
@@ -27,5 +24,4 @@ export type RootState = ReturnType<typeof store.getState>;
 export const {
 	updataSettings,
 	updataPluginManager,
-	updataPluginGroups,
 } = settingsSlice.actions;
