@@ -25,7 +25,23 @@ export class PluginManagerLeft extends ItemView {
 		return t(store.getState().settings.language, "pluginManager");
 	}
 	updateHeaderText() {
-		(this.leaf as unknown as { updateHeader(): void }).updateHeader();
+		const title = t(store.getState().settings.language, "pluginManager");
+		const leaf = this.leaf as unknown as {
+			updateHeader?: () => void;
+			tabHeaderEl?: HTMLElement;
+			tabHeaderInnerTitleEl?: HTMLElement;
+		};
+		leaf.updateHeader?.();
+		const innerTitle =
+			leaf.tabHeaderInnerTitleEl ??
+			leaf.tabHeaderEl?.querySelector(".workspace-tab-header-inner-title");
+		if (innerTitle) {
+			innerTitle.textContent = title;
+		}
+		if (leaf.tabHeaderEl) {
+			leaf.tabHeaderEl.setAttribute("aria-label", title);
+			leaf.tabHeaderEl.title = title;
+		}
 	}
 	onOpen() {
 		this.root = createRoot(this.containerEl.children[1]);

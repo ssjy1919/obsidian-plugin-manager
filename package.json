@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-plugin-manager",
-	"version": "0.0.6",
+	"version": "0.0.5",
 	"description": "Obsidian 插件管理器 - 管理插件的启用状态、分组、延时启动、更新检查等功能。",
 	"main": "main.js",
 	"scripts": {
