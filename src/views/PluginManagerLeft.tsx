@@ -24,6 +24,9 @@ export class PluginManagerLeft extends ItemView {
 	getDisplayText() {
 		return t(store.getState().settings.language, "pluginManager");
 	}
+	updateHeaderText() {
+		(this.leaf as unknown as { updateHeader(): void }).updateHeader();
+	}
 	onOpen() {
 		this.root = createRoot(this.containerEl.children[1]);
 		this.root.render(

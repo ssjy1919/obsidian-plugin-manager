@@ -11,6 +11,7 @@ import { t } from "./i18n";
 
 export default class PluginManagerPlugin extends Plugin {
 	public settings!: PluginManagerSettings;
+	private ribbonIconEl: HTMLElement | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -40,11 +41,33 @@ export default class PluginManagerPlugin extends Plugin {
 			},
 		});
 
-		this.addRibbonIcon("blocks", t(this.settings.language, "pluginManager"), () => {
+		this.ribbonIconEl = this.addRibbonIcon("blocks", t(this.settings.language, "pluginManager"), () => {
 			activateMiddleView(this);
 		});
 
 		this.addSettingTab(new PluginManagerSettingTab(this.app, this));
+	}
+
+	updateUILanguage() {
+		const language = store.getState().settings.language;
+		this.settings.language = language;
+		if (this.ribbonIconEl) {
+			this.ribbonIconEl.setAttribute("aria-label", t(language, "pluginManager"));
+			this.ribbonIconEl.title = t(language, "pluginManager");
+		}
+		this.removeCommand("pluginManagerCenterLeafView");
+		this.addCommand({
+			id: "pluginManagerCenterLeafView",
+			name: t(language, "openPluginManager"),
+			callback: () => {
+				activateMiddleView(this);
+			},
+		});
+		this.app.workspace.getLeavesOfType(VIEW_TYPE_PLUGIN_MANAGER).forEach((leaf) => {
+			if (leaf.view instanceof PluginManagerLeft) {
+				leaf.view.updateHeaderText();
+			}
+		});
 	}
 
 	onunload() {

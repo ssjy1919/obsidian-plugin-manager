@@ -97,7 +97,7 @@ version-bump.mjs               # 版本号同步脚本
 - `translations`：`zh` / `en` 两套文案
 - `t(language, key, params?)`：按当前语言取文案并替换 `{placeholder}`
 - 所有用户可见文案都应通过 `t()`，不要直接写死中文字符串
-- 命令名和 ribbon 标题在插件加载时读取语言；设置页切换语言后主界面和提示即时生效，命令面板/侧边栏图标在下次启动时同步
+- 设置页切换语言后会调用 `plugin.updateUILanguage()`，即时刷新命令名、ribbon 图标提示和已打开视图的标题
 
 ### 3.3 store.ts — Redux 状态管理
 

@@ -32,6 +32,7 @@ const SettingComponent: React.FC<SettingComponentProps> = ({ plugin }) => {
 		const newSettings = { ...storeSettings, language: value };
 		dispatch(updataSettings(newSettings));
 		await plugin.saveData(newSettings);
+		plugin.updateUILanguage();
 		new Notice(t(value, "languageChanged"), 3000);
 	};
 
