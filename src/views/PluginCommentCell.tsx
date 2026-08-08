@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
-import { MarkdownRenderer, Notice } from "obsidian";
+import { Component, MarkdownRenderer, Notice } from "obsidian";
 import { RootState } from "../store";
 import { PluginManager } from "../types";
 import PluginManagerPlugin from "../main";
@@ -21,17 +21,24 @@ const PluginCommentCell: React.FC<Props> = ({
     plugin, Iplugin, editing, value, placeholder, onChange, onEdit, onBlur
 }) => {
     const divRef = useRef<HTMLDivElement>(null);
+    const renderComponentRef = useRef<Component | null>(null);
     const language = useSelector((state: RootState) => state.settings.language);
 
     useEffect(() => {
-        if (!editing && divRef.current) {
+        const component = new Component();
+        renderComponentRef.current = component;
+        return () => component.unload();
+    }, []);
+
+    useEffect(() => {
+        if (!editing && divRef.current && renderComponentRef.current) {
             divRef.current.innerHTML = "";
             MarkdownRenderer.render(
                 plugin.app,
                 value === "" ? placeholder : value,
                 divRef.current,
                 "",
-                plugin
+                renderComponentRef.current
             ).then(() => {
                 // 处理内部链接
                 divRef.current?.querySelectorAll('a.internal-link').forEach(a => {

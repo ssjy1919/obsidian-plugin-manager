@@ -114,10 +114,11 @@ export function t(
 	key: TranslationKey,
 	params?: Record<string, string | number>
 ): string {
-	let text: string = (translations[language]?.[key] ?? translations.zh[key] ?? key) as string;
+	let text: string = translations[language][key] ?? translations.zh[key] ?? key;
 	if (params) {
-		for (const [name, value] of Object.entries(params)) {
-			text = text.split(`{${name}}`).join(String(value));
+		for (const name in params) {
+			const value = params[name];
+			text = text.replace(new RegExp(`\\{${name}\\}`, "g"), String(value));
 		}
 	}
 	return text;

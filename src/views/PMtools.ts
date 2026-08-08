@@ -1,6 +1,6 @@
 import PluginManagerPlugin from "../main";
 import { VIEW_TYPE_PLUGIN_MANAGER } from "./PluginManagerLeft";
-import { App, Notice, PluginManifest, WorkspaceLeaf } from "obsidian";
+import { App, Notice, Platform, PluginManifest, WorkspaceLeaf } from "obsidian";
 import { DeviceType, PluginManager, normalizePluginEntry } from "../types";
 import { updataSettings, store } from "../store";
 import { t } from "../i18n";
@@ -22,16 +22,10 @@ export interface InternalApp extends App {
 		open(): void;
 		openTabById(tabId: string): void;
 	};
-	isMobile?: boolean;
 }
 
 function getApp(): InternalApp {
 	return (globalThis as unknown as { app: InternalApp }).app;
-}
-
-function getUserAgentData(): { mobile?: boolean; platform?: string } | undefined {
-	return (navigator as Navigator & { userAgentData?: { mobile?: boolean; platform?: string } })
-		.userAgentData;
 }
 
 const delayedStartTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -77,28 +71,9 @@ export function scheduleDelayedEnable(
  * 检测当前设备类型。
  */
 export function getDeviceType(): DeviceType {
-	// 优先使用 userAgentData（Chrome DevTools 模拟时更可靠）
-	const uaData = getUserAgentData();
-	const isMobileByData = uaData?.mobile;
-
-	const ua = navigator.userAgent || "";
-	const isMobileByUA = /iPhone|iPod|iPad|Android|Mobile/i.test(ua);
-
-	// 任一来源判定为移动端即为移动端
-	const isMobile = isMobileByData === true || (isMobileByData === undefined && isMobileByUA);
-
-	if (!isMobile) return "desktop";
-
-	// 区分手机和平板
-	if (/iPhone|iPod/i.test(ua)) return "phone";
-	if (/iPad/i.test(ua)) return "tablet";
-	if (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return "tablet";
-	if (/Android/i.test(ua)) {
-		return /Mobile/i.test(ua) ? "phone" : "tablet";
-	}
-	// 移动端但 UA 无明确标识，根据 userAgentData 平台判断
-	if (uaData?.platform === "iOS") return "phone";
-	return "phone";
+	if (Platform.isPhone) return "phone";
+	if (Platform.isTablet) return "tablet";
+	return "desktop";
 }
 
 /**
@@ -108,10 +83,9 @@ export function getDeviceType(): DeviceType {
  */
 export async function activateMiddleView(plugin: PluginManagerPlugin) {
 	const { workspace } = plugin.app;
-	const app = plugin.app as InternalApp;
 	const storeSettings = store.getState().settings;
 	const isNewWindow =
-		!app.isMobile && storeSettings.pluginSettingNewWindow;
+		!Platform.isMobile && storeSettings.pluginSettingNewWindow;
 
 	let existingLeaf: WorkspaceLeaf | undefined;
 
@@ -300,10 +274,12 @@ export async function applyDeviceRules(plugin: PluginManagerPlugin) {
 		clearAllDelayedStarts();
 		const storeSettings = store.getState().settings;
 		const deviceType = getDeviceType();
-		const uaMobile = getUserAgentData()?.mobile;
 		debugLog("当前设备类型:", deviceType,
-			"| userAgentData.mobile:", uaMobile,
-			"| maxTouchPoints:", navigator.maxTouchPoints);
+			"| Platform:", {
+				isMobile: Platform.isMobile,
+				isPhone: Platform.isPhone,
+				isTablet: Platform.isTablet,
+			});
 
 		const plugins = storeSettings.pluginManager || [];
 		for (const p of plugins) {

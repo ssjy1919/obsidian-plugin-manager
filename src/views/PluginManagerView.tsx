@@ -8,7 +8,7 @@ import { DeviceType, PluginManager, normalizePluginEntry } from "../types";
 import { applyDeviceRules, clearAllDelayedStarts, clearDelayedStart, disablePlugin, enablePlugin, getAllPlugins, getDeviceType, getSwitchTimeByPluginId, InternalApp, openPluginSettings, tempEnablePlugin } from "./PMtools";
 import { useMemo, useState } from "react";
 import GroupView from "./GroupView";
-import { Notice } from "obsidian";
+import { Notice, Platform } from "obsidian";
 import PluginCommentCell from "./PluginCommentCell";
 import { t, TranslationKey } from "../i18n";
 import { debugError } from "../logger";
@@ -53,7 +53,7 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 	], [pluginManager]);
 
 	const handleChange = async (iPlugin: PluginManager) => {
-		if ((plugin.app as InternalApp).isMobile && iPlugin.isDesktopOnly) {
+		if (Platform.isMobile && iPlugin.isDesktopOnly) {
 			new Notice(t(language, "unsupportedOnMobile"));
 			return;
 		}
@@ -267,7 +267,7 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 			const promises = backup
 				.filter(p => p.id && p.id !== "plugins-control")
 				.map(async (p) => {
-					if ((plugin.app as InternalApp).isMobile && p.isDesktopOnly) return;
+					if (Platform.isMobile && p.isDesktopOnly) return;
 					const disabledDeviceTypes = p.disabledDeviceTypes || [];
 					const disabledForCurrent = disabledDeviceTypes.includes(currentDeviceType);
 					const startEnabled = normalizePluginEntry(p).startEnabled;
@@ -443,7 +443,7 @@ const PluginManagerView: React.FC<PluginManagerViewProps> = ({ plugin }) => {
 								return (
 									<tr key={Iplugin.id}>
 										<td className={Iplugin.enabled ? "enabled" : "disable"} onClick={() => { handleSettingClick(Iplugin) }}>
-											<div className={`plugin-name ${(plugin.app as InternalApp).isMobile && Iplugin.isDesktopOnly ? "isDesktopOnly" : ""}`}>
+											<div className={`plugin-name ${Platform.isMobile && Iplugin.isDesktopOnly ? "isDesktopOnly" : ""}`}>
 												<div>{Iplugin.name}</div>
 												<div className="plugin-setting">{Iplugin.enabled && (plugin.app as InternalApp).setting.pluginTabs.find((P: { id: string }) => P.id === Iplugin.id) ? "  ⚙️" : "   "}<div className="version">{Iplugin.version}</div></div>
 											</div>

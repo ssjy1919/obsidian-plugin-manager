@@ -73,7 +73,6 @@ export default class PluginManagerPlugin extends Plugin {
 
 	onunload() {
 		clearAllDelayedStarts();
-		this.app.workspace.detachLeavesOfType(VIEW_TYPE_PLUGIN_MANAGER);
 	}
 
 	async loadSettings() {
