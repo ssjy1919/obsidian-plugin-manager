@@ -116,7 +116,6 @@
 
 .PluginManagerView .setting-item {
     padding: 0;
-    display: contents;
 }
 
 .PluginManagerView thead {
@@ -300,4 +299,3 @@
 	border-color: transparent;
 	opacity: 0.3;
 }
-
