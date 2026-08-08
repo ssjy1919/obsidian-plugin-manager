@@ -1,8 +1,8 @@
 # Obsidian Plugins Control
 
-Manage the enabled state, delayed startup, device-type rules, and notes for installed Obsidian plugins.
+[中文](README.md)
 
-> [中文](README.md)
+Manage the enabled state, delayed startup, device-type rules, and notes for installed Obsidian plugins.
 
 ## Features
 

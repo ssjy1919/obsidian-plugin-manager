@@ -1,8 +1,8 @@
 # Obsidian Plugins Control
 
-Obsidian 插件控制 —— 集中管理已安装插件的启用状态、延时启动、设备类型控制和备注。
+[English](README.en.md)
 
-> [English](README.en.md)
+Obsidian 插件控制 —— 集中管理已安装插件的启用状态、延时启动、设备类型控制和备注。
 
 ## 功能
 
