@@ -17,6 +17,8 @@ Manage the enabled state, delayed startup, device-type rules, and notes for inst
 - **Bilingual UI**: choose Chinese or English in the settings; the main UI and notifications switch immediately
 - **Console logs**: disabled by default, can be enabled from the settings page
 
+![Control Center page](./images/plugin-control-page.png)
+
 ## Device Type Control
 
 Each plugin has three device-type icons (📱 phone, 📋 tablet, 💻 desktop). Click an icon to toggle whether that device type is disabled for the plugin.
@@ -26,6 +28,10 @@ Device types use a deny-list:
 - Empty list: enabled on all device types
 - Contains only the current device type: disabled on this device, enabled on others
 - Contains all three device types: plugin is globally disabled
+
+## Save & Restore for Troubleshooting
+
+With many Obsidian plugins installed, it can be hard to find which plugin is causing a bug or conflict. Save the current enabled/disabled configuration first, then freely disable many plugins while troubleshooting. When you are done, click **Restore** to bring every plugin back to its saved state in one click.
 
 ## Installation
 
