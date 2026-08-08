@@ -1,97 +1,98 @@
-# Obsidian Plugins Control
+# Control Center
 
-[English](README.en.md)
+Manage the enabled state, delayed startup, device-type rules, and notes for installed Obsidian plugins.
 
-Obsidian 插件控制 —— 集中管理已安装插件的启用状态、延时启动、设备类型控制和备注。
+> [中文](README.zh.md)
 
-## 功能
+## Features
 
-- **插件列表管理**：以表格展示所有已安装插件，支持按名称、状态、延时时间、更改时间、备注排序
-- **启用/禁用切换**：一键切换插件启用状态，自动记录更改时间
-- **延时启动**：为插件设置 N 秒延时；当前会话立即生效，下次启动 Obsidian 时按延时加载
-- **设备类型控制**：按手机、平板、电脑三种设备类型禁用插件，切换设备后自动应用规则
-- **首字母索引**：通过首字母快速定位插件
-- **搜索过滤**：按插件名称或备注内容搜索
-- **备注功能**：为插件添加 Markdown 备注，支持内部链接
-- **配置备份/恢复**：保存并恢复全部插件的启用状态、设备规则、延时和备注
-- **中英文界面**：在设置页选择中文或 English，主界面和操作提示即时切换
-- **控制台日志**：默认关闭，可在设置页开启调试日志
+- **Plugin list management**: display all installed plugins in a table, sortable by name, status, delay, modified time, and notes
+- **Enable/disable toggle**: switch a plugin on or off and record the change time automatically
+- **Delayed startup**: set an N-second delay for a plugin; it takes effect immediately in the current session and applies the delay on the next Obsidian startup
+- **Device-type control**: disable plugins per device type (phone, tablet, desktop); rules apply automatically when switching devices
+- **Letter index**: jump to plugins quickly by their first letter
+- **Search filter**: search by plugin name or note content
+- **Notes**: add Markdown notes to plugins, with support for internal links
+- **Backup/restore**: save and restore enabled states, device rules, delays, and notes
+- **Bilingual UI**: choose Chinese or English in the settings; the main UI and notifications switch immediately
+- **Console logs**: disabled by default, can be enabled from the settings page
 
-## 设备类型控制
+## Device Type Control
 
-每个插件提供三个设备类型图标（📱 手机、📋 平板、💻 电脑），点击可切换该设备类型是否禁用此插件。
+Each plugin has three device-type icons (📱 phone, 📋 tablet, 💻 desktop). Click an icon to toggle whether that device type is disabled for the plugin.
 
-设备类型采用禁用列表（deny-list）：
+Device types use a deny-list:
 
-- 空列表：所有设备类型均启用
-- 只包含当前设备类型：当前设备禁用，其他设备启用
-- 包含全部三种设备类型：插件全局禁用
+- Empty list: enabled on all device types
+- Contains only the current device type: disabled on this device, enabled on others
+- Contains all three device types: plugin is globally disabled
 
-## 安装
+## Installation
 
-### 手动安装
+### Manual Installation
 
-1. 克隆或下载本仓库到 Obsidian 的插件目录：
+1. Clone or download this repository into your Obsidian plugins folder:
    ```
-   <你的仓库路径>/.obsidian/plugins/plugins-control/
+   <your-vault>/.obsidian/plugins/plugins-control/
    ```
-2. 在插件目录下运行：
+2. Run the following commands inside the plugin folder:
    ```bash
    npm install
    npm run build
    ```
-3. 在 Obsidian 中启用插件：**设置 → 第三方插件 → Plugins Control**
-4. 打开插件设置页，在“界面语言 / Language”中选择中文或 English
+3. Enable the plugin in Obsidian: **Settings → Community plugins → Control Center**
+4. Open the plugin settings and choose Chinese or English under **Language**
 
-## 开发
+## Development
 
 ```bash
-# 安装依赖
+# Install dependencies
 npm install
 
-# 开发模式（监听文件变化自动编译）
+# Development mode (watch and rebuild automatically)
 npm run dev
 
-# 生产构建
+# Production build
 npm run build
 
-# 发布一致性检查
+# Release consistency check
 npm test
 ```
 
-## 发布
+## Release
 
-更新版本并同步 `manifest.json`、`versions.json`：
+Update the version and sync `manifest.json` and `versions.json`:
 
 ```bash
 npm version patch
 ```
 
-发布前运行 `npm test` 和 `npm run build`。
+Run `npm test` and `npm run build` before publishing.
 
-## 项目结构
+## Project Structure
 
 ```
 src/
-├── main.ts                  # 插件入口
-├── types.ts                 # 类型定义、默认设置、旧数据迁移
-├── i18n.ts                  # 中英文翻译
-├── store.ts                 # Redux 状态管理
+├── main.ts                  # Plugin entry point
+├── types.ts                 # Types, defaults, legacy data migration
+├── i18n.ts                  # Chinese and English translations
+├── store.ts                 # Redux state management
+├── logger.ts                # Console logging (disabled by default)
 ├── views/
-│   ├── PluginManagerLeft.tsx   # ItemView 注册
-│   ├── PluginManagerView.tsx   # 主视图（插件列表表格）
-│   ├── GroupView.tsx           # 搜索框
-│   ├── PluginCommentCell.tsx   # 备注单元格
-│   └── PMtools.ts              # 插件刷新、启停、设备规则、延时定时器
+│   ├── PluginManagerLeft.tsx   # ItemView registration
+│   ├── PluginManagerView.tsx   # Main plugin table view
+│   ├── GroupView.tsx           # Search box
+│   ├── PluginCommentCell.tsx   # Notes cell
+│   └── PMtools.ts              # Plugin refresh, enable/disable, device rules, delay timers
 ├── components/
-│   └── Switch.tsx              # 开关组件
+│   └── Switch.tsx              # Toggle switch
 └── setting/
-    └── settingTab.tsx          # 插件设置页面
+    └── settingTab.tsx          # Plugin settings page
 scripts/
-└── check-release.mjs           # 发布一致性检查
-version-bump.mjs                # 版本号同步脚本
+└── check-release.mjs           # Release consistency check
+version-bump.mjs                # Version bump script
 ```
 
-## 许可证
+## License
 
 MIT

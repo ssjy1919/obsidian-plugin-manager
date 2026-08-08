@@ -1,6 +1,6 @@
 import { store } from "./store";
 
-const LOG_PREFIX = "[Plugins Control]";
+const LOG_PREFIX = "[Control Center]";
 
 export function debugLog(...args: unknown[]): void {
 	if (store.getState().settings.debugLogs) {

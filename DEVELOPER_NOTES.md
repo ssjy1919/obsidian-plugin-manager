@@ -1,4 +1,4 @@
-# Plugins Control 开发说明文档
+# Control Center 开发说明文档
 
 > 本文档面向后续接手的开发人员，说明项目架构、当前实现和注意事项。
 
@@ -6,7 +6,7 @@
 
 ## 1. 项目背景
 
-Plugins Control 是一个 Obsidian 插件，用于管理本地已安装插件的启用状态、设备类型规则、延时启动和备注。
+Control Center 是一个 Obsidian 插件，用于管理本地已安装插件的启用状态、设备类型规则、延时启动和备注。
 
 当前实现侧重于本地插件列表管理与 Obsidian 插件启用/禁用控制，不包含更新检查、批量更新或定时调度模块。
 
@@ -240,7 +240,7 @@ Obsidian app.plugins.manifests
 
 ### 平台限制
 
-Obsidian 在 `onLayoutReady` 之前就会加载持久化启用的插件。由本插件写入的配置可以保证下次启动不提前加载；如果用户在 Obsidian 原生设置里直接启用插件，Plugins Control 只能事后卸载再延时，无法做到真正的“启动前不加载”。
+Obsidian 在 `onLayoutReady` 之前就会加载持久化启用的插件。由本插件写入的配置可以保证下次启动不提前加载；如果用户在 Obsidian 原生设置里直接启用插件，Control Center 只能事后卸载再延时，无法做到真正的“启动前不加载”。
 
 ---
 
@@ -315,7 +315,7 @@ npm version patch
 
 - `applyDeviceRules()` 会跳过移动端不支持的 `isDesktopOnly` 插件
 - `saveConfig()` 会深拷贝 `tags` 和 `disabledDeviceTypes`，避免备份与当前列表共享引用
-- `restoreConfig()` 会跳过 Plugins Control 自身，并在恢复后重新执行 `applyDeviceRules()`
+- `restoreConfig()` 会跳过 Control Center 自身，并在恢复后重新执行 `applyDeviceRules()`
 - `handleChange` 会同步更新 `startEnabled` 和 `disabledDeviceTypes`
 - `handleDeviceTypeToggle` 在部分禁用模式下采用“先持久化禁用，再临时启用”的策略
 - 设备图标 tooltip 中 `checked` 表示“该设备类型禁用”
